@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:html_unescape/html_unescape.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:toonflix/models/webtoon_detail_model.dart';
 import 'package:toonflix/models/webtoon_episode_model.dart';
 import 'package:toonflix/service/api_service.dart';
-import 'package:url_launcher/url_launcher.dart';
-import 'package:url_launcher/url_launcher_string.dart';
 
 import '../widgets/episode_widget.dart';
 
@@ -29,12 +28,44 @@ class DetailScreen extends StatefulWidget {
 class _DetailScreenState extends State<DetailScreen> {
   late Future<WebtoonDetailModel> webtoon;
   late Future<List<WebtoonEpisodeModel>> episodes;
+  late SharedPreferences prefs;
+  bool isLiked = false;
+
+  Future initPrefs() async {
+    prefs = await SharedPreferences.getInstance();
+    final likedToons = prefs.getStringList('likedToons');
+    if (likedToons != null) {
+      if (likedToons.contains(widget.id) == true) {
+        setState(() {
+          isLiked = true;
+        });
+      }
+    } else {
+      await prefs.setStringList('likedToons', []);
+    }
+  }
 
   @override
   void initState() {
     super.initState();
     webtoon = ApiService.getToonById(widget.id);
     episodes = ApiService.getLatestEpisodeById(widget.id);
+    initPrefs();
+  }
+
+  onHeartTap() async {
+    final likedToons = prefs.getStringList('likedToons');
+    if (likedToons != null) {
+      if (isLiked) {
+        likedToons.remove(widget.id);
+      } else {
+        likedToons.add(widget.id);
+      }
+      await prefs.setStringList('likedToons', likedToons);
+      setState(() {
+        isLiked = !isLiked;
+      });
+    }
   }
 
   @override
@@ -48,6 +79,14 @@ class _DetailScreenState extends State<DetailScreen> {
         elevation: 2,
         backgroundColor: Colors.white,
         foregroundColor: Colors.green,
+        actions: [
+          IconButton(
+            onPressed: onHeartTap,
+            icon: Icon(
+                isLiked ? Icons.favorite : Icons.favorite_outline
+            ),
+          ),
+        ],
         centerTitle: true,
         title: Text(
           widget.title,
